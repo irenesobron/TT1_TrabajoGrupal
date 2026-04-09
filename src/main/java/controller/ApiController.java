@@ -1,13 +1,13 @@
-package java.controller;
+package controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.com.ejemplo.ProblemDetails;
-import java.com.ejemplo.EmailResponse;
-import java.com.ejemplo.ResultsResponse;
-import java.com.ejemplo.Solicitud;
-import java.com.ejemplo.SolicitudResponse;
+import com.ejemplo.ProblemDetails;
+import com.ejemplo.EmailResponse;
+import com.ejemplo.ResultsResponse;
+import com.ejemplo.Solicitud;
+import com.ejemplo.SolicitudResponse;
 
 import java.util.List;
 

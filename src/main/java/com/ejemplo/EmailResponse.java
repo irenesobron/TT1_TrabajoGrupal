@@ -1,4 +1,4 @@
-package java.com.ejemplo;
+package com.ejemplo;
 
 public class EmailResponse {
     private boolean done;
