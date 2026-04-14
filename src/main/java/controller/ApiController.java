@@ -17,7 +17,7 @@ public class ApiController {
 
     @GetMapping("/")
     public String home() {
-        return "API funcionando. Endpoints disponibles: /api/Email, /api/Resultados, etc.";
+        return "API funcionando.";
     }
 
     @PostMapping("/Email")
