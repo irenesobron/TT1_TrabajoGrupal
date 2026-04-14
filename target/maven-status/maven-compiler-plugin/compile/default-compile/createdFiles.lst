@@ -1,0 +1,7 @@
+com\ejemplo\EmailResponse.class
+com\ejemplo\Principal.class
+com\ejemplo\ProblemDetails.class
+com\ejemplo\Solicitud.class
+controller\ApiController.class
+com\ejemplo\ResultsResponse.class
+com\ejemplo\SolicitudResponse.class
