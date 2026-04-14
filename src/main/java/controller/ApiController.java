@@ -12,7 +12,7 @@ import com.ejemplo.SolicitudResponse;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("")
 public class ApiController {
 
     @GetMapping("/")
