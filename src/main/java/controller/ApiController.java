@@ -17,7 +17,7 @@ public class ApiController {
 
     @GetMapping("/")
     public String home() {
-        return "API funcionando. Endpoints disponibles: /Email, /Resultados, /Solicitud/Solicitar, /solicitud, /resultado";  
+        return "API funcionando. Endpoints disponibles: /api/Email, /api/Resultados, etc.";
     }
 
     @PostMapping("/Email")
@@ -84,8 +84,6 @@ public class ApiController {
         return ResponseEntity.status(HttpStatus.CREATED).body(List.of(1, 2, 3)); // Ejemplo de ID de solicitudes
 
     }
-
-
 
     @GetMapping("/Solicitud/ComprobarSolicitud")
 
