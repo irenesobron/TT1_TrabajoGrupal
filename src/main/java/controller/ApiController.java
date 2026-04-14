@@ -15,6 +15,11 @@ import java.util.List;
 @RequestMapping("/api")
 public class ApiController {
 
+    @GetMapping("/")
+    public String home() {
+        return "API funcionando. Endpoints disponibles: /api/Email, /api/Resultados, etc.";
+    }
+
     @PostMapping("/Email")
 
     public ResponseEntity<?> enviarEmail(@RequestParam String emailAddress, @RequestParam String message) {
