@@ -17,7 +17,7 @@ public class ApiController {
 
     @GetMapping("/")
     public String home() {
-        return "API funcionando. Endpoints disponibles: /api/Email, /api/Resultados, etc.";
+        return "API funcionando. Endpoints disponibles: /Email, /Resultados, /Solicitud/Solicitar, /solicitud, /resultado";  
     }
 
     @PostMapping("/Email")
@@ -39,7 +39,6 @@ public class ApiController {
 
 
     @PostMapping("/Resultados")
-
     public ResponseEntity<?> obtenerResultados(@RequestParam String nombreUsuario, @RequestParam Integer tok) {
 
         if (nombreUsuario == null || tok == null) {
@@ -57,9 +56,7 @@ public class ApiController {
 
 
     @PostMapping("/Solicitud/Solicitar")
-
     public ResponseEntity<?> solicitar(@RequestParam String nombreUsuario, @RequestBody Solicitud solicitud) {
-
         if (nombreUsuario == null || solicitud == null) {
 
             ProblemDetails problemDetails = new ProblemDetails("error", "Bad Request", 400, "Missing nombreUsuario or solicitud", "/Solicitud/Solicitar");
@@ -67,7 +64,6 @@ public class ApiController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetails);
 
         }
-
         return ResponseEntity.status(HttpStatus.CREATED).body(new SolicitudResponse(true, 1, null, true));
 
     }
@@ -75,7 +71,6 @@ public class ApiController {
 
 
     @GetMapping("/Solicitud/GetSolicitudesUsuario")
-
     public ResponseEntity<?> getSolicitudesUsuario(@RequestParam String nombreUsuario) {
 
         if (nombreUsuario == null) {
@@ -104,7 +99,18 @@ public class ApiController {
 
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(List.of(1, 2)); // Ejemplo de ID de solicitudes
+        return ResponseEntity.status(HttpStatus.CREATED).body(List.of(1, 2)); 
 
+    }
+
+    //Paa el cliente
+    @PostMapping("/solicitud")
+    public ResponseEntity<String> solicitudCompat(@RequestBody(required = false) String body) {
+        return ResponseEntity.status(HttpStatus.CREATED).body("1");
+    }
+
+    @GetMapping("/resultado")
+    public ResponseEntity<String> resultadoCompat(@RequestParam String token) {
+        return ResponseEntity.ok("Resultados generados");
     }
 }
