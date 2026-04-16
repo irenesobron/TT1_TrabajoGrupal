@@ -9,11 +9,21 @@ import com.ejemplo.ResultsResponse;
 import com.ejemplo.Solicitud;
 import com.ejemplo.SolicitudResponse;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
 @RequestMapping("")
 public class ApiController {
+
+
+    private final Map<String, List<Integer>> tokensPorUsuario = new ConcurrentHashMap<>();
+    private final Map<Integer, String> resultadosPorToken = new ConcurrentHashMap<>();
+    private final AtomicInteger secuencia = new AtomicInteger(1);
 
     @GetMapping("/")
     public String home() {
@@ -40,31 +50,28 @@ public class ApiController {
 
     @PostMapping("/Resultados")
     public ResponseEntity<?> obtenerResultados(@RequestParam String nombreUsuario, @RequestParam Integer tok) {
-
-        if (nombreUsuario == null || tok == null) {
-
-            ProblemDetails problemDetails = new ProblemDetails("error", "Bad Request", 400, "Missing nombreUsuario or tok", "/Resultados");
-
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetails);
-
+        String data = resultadosPorToken.get(tok);
+        if (data == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ProblemDetails("error", "Bad Request", 400, "Token no encontrado", "/Resultados"));
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ResultsResponse(true, tok, null, "Resultados generados"));
-
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ResultsResponse(true, tok, null, data));
     }
 
 
 
     @PostMapping("/Solicitud/Solicitar")
     public ResponseEntity<?> solicitar(@RequestParam String nombreUsuario, @RequestBody Solicitud solicitud) {
-        if (nombreUsuario == null || solicitud == null) {
+        int token = secuencia.getAndIncrement();
+        tokensPorUsuario.computeIfAbsent(nombreUsuario, k -> new ArrayList<>()).add(token);
 
-            ProblemDetails problemDetails = new ProblemDetails("error", "Bad Request", 400, "Missing nombreUsuario or solicitud", "/Solicitud/Solicitar");
+        String data = "5\n0,0,0,red\n0,1,1,blue\n1,2,2,green\n2,3,3,yellow\n";
+        resultadosPorToken.put(token, data);
 
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetails);
-
-        }
-        return ResponseEntity.status(HttpStatus.CREATED).body(new SolicitudResponse(true, 1, null, true));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new SolicitudResponse(true, token, null, true));
 
     }
 
@@ -72,43 +79,46 @@ public class ApiController {
 
     @GetMapping("/Solicitud/GetSolicitudesUsuario")
     public ResponseEntity<?> getSolicitudesUsuario(@RequestParam String nombreUsuario) {
-
-        if (nombreUsuario == null) {
-
-            ProblemDetails problemDetails = new ProblemDetails("error", "Bad Request", 400, "Missing nombreUsuario", "/Solicitud/GetSolicitudesUsuario");
-
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetails);
-
-        }
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(List.of(1, 2, 3)); // Ejemplo de ID de solicitudes
-
+        return ResponseEntity.status(HttpStatus.CREATED)
+        .body(tokensPorUsuario.getOrDefault(nombreUsuario, List.of()));
     }
 
     @GetMapping("/Solicitud/ComprobarSolicitud")
-
     public ResponseEntity<?> comprobarSolicitud(@RequestParam String nombreUsuario, @RequestParam Integer tok) {
-
         if (nombreUsuario == null || tok == null) {
+                ProblemDetails problemDetails = new ProblemDetails(
+                        "error", "Bad Request", 400,
+                        "Missing nombreUsuario or tok", "/Solicitud/ComprobarSolicitud");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetails);
+            }
 
-            ProblemDetails problemDetails = new ProblemDetails("error", "Bad Request", 400, "Missing nombreUsuario or tok", "/Solicitud/ComprobarSolicitud");
+            if (resultadosPorToken.containsKey(tok)) {
+                return ResponseEntity.status(HttpStatus.CREATED).body(List.of(tok));
+            }
 
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetails);
-
-        }
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(List.of(1, 2)); 
-
+            return ResponseEntity.status(HttpStatus.CREATED).body(List.of());
     }
 
     //Paa el cliente
     @PostMapping("/solicitud")
     public ResponseEntity<String> solicitudCompat(@RequestBody(required = false) String body) {
-        return ResponseEntity.status(HttpStatus.CREATED).body("1");
+        int token = secuencia.getAndIncrement();
+        String data = "5\n0,0,0,red\n0,1,1,blue\n1,2,2,green\n2,3,3,yellow\n";
+        resultadosPorToken.put(token, data);
+        return ResponseEntity.status(HttpStatus.CREATED).body(String.valueOf(token));
     }
 
     @GetMapping("/resultado")
     public ResponseEntity<String> resultadoCompat(@RequestParam String token) {
-        return ResponseEntity.ok("Resultados generados"); //Trabajo ANA
+        try {
+            int tok = Integer.parseInt(token);
+            String data = resultadosPorToken.get(tok);
+            if (data == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Token no encontrado");
+            }
+            return ResponseEntity.ok(data);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Token inválido");
+        }
     }
 }
