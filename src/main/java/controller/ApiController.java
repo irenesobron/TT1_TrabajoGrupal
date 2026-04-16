@@ -31,7 +31,6 @@ public class ApiController {
     }
 
     @PostMapping("/Email")
-
     public ResponseEntity<?> enviarEmail(@RequestParam String emailAddress, @RequestParam String message) {
 
         if (emailAddress == null || message == null) {
@@ -64,7 +63,7 @@ public class ApiController {
 
     @PostMapping("/Solicitud/Solicitar")
     public ResponseEntity<?> solicitar(@RequestParam String nombreUsuario, @RequestBody Solicitud solicitud) {
-        int token = secuencia.getAndIncrement();
+        int token = secuencia.getAndIncrement(); //cambiar a random
         tokensPorUsuario.computeIfAbsent(nombreUsuario, k -> new ArrayList<>()).add(token);
 
         String data = "5\n0,0,0,red\n0,1,1,blue\n1,2,2,green\n2,3,3,yellow\n";
