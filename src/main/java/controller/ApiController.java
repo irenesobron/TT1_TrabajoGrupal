@@ -109,6 +109,6 @@ public class ApiController {
 
     @GetMapping("/resultado")
     public ResponseEntity<String> resultadoCompat(@RequestParam String token) {
-        return ResponseEntity.ok("Resultados generados");
+        return ResponseEntity.ok("Resultados generados"); //Trabajo ANA
     }
 }
