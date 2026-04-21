@@ -112,20 +112,14 @@ public class ApiController {
     @PostMapping("/Solicitud/Solicitar")
     public ResponseEntity<?> solicitar(@RequestParam String nombreUsuario, @RequestBody Solicitud solicitud) {
         try {
-            System.out.println("=== DEBUG /Solicitud/Solicitar ===");
-            System.out.println("Usuario: " + nombreUsuario);
             
             int token = Math.abs(random.nextInt());
-            System.out.println("Token generado: " + token);
             
             tokensPorUsuario.computeIfAbsent(nombreUsuario, k -> new ArrayList<>()).add(token);
 
-            System.out.println("Generando grid de 12x12...");
             String data = generateGridData(token, 12);
-            System.out.println("Grid generado. Almacenando en caché...");
             
             resultadosPorToken.put(token, data);
-            System.out.println("Datos almacenados. Devolviendo SolicitudResponse");
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new SolicitudResponse(true, token, null, true));
