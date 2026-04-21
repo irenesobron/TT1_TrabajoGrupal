@@ -10,11 +10,10 @@ import com.ejemplo.Solicitud;
 import com.ejemplo.SolicitudResponse;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.security.SecureRandom;
 
 @RestController
 @RequestMapping("")
@@ -23,7 +22,7 @@ public class ApiController {
 
     private final Map<String, List<Integer>> tokensPorUsuario = new ConcurrentHashMap<>();
     private final Map<Integer, String> resultadosPorToken = new ConcurrentHashMap<>();
-    private final AtomicInteger secuencia = new AtomicInteger(1);
+    private final SecureRandom random = new SecureRandom();
 
     @GetMapping("/")
     public String home() {
@@ -63,7 +62,7 @@ public class ApiController {
 
     @PostMapping("/Solicitud/Solicitar")
     public ResponseEntity<?> solicitar(@RequestParam String nombreUsuario, @RequestBody Solicitud solicitud) {
-        int token = secuencia.getAndIncrement(); //cambiar a random
+        int token = random.nextInt(Integer.MAX_VALUE);
         tokensPorUsuario.computeIfAbsent(nombreUsuario, k -> new ArrayList<>()).add(token);
 
         String data = "5\n0,0,0,red\n0,1,1,blue\n1,2,2,green\n2,3,3,yellow\n";
@@ -101,7 +100,7 @@ public class ApiController {
     //Paa el cliente
     @PostMapping("/solicitud")
     public ResponseEntity<String> solicitudCompat(@RequestBody(required = false) String body) {
-        int token = secuencia.getAndIncrement();
+        int token = random.nextInt(Integer.MAX_VALUE);
         String data = "5\n0,0,0,red\n0,1,1,blue\n1,2,2,green\n2,3,3,yellow\n";
         resultadosPorToken.put(token, data);
         return ResponseEntity.status(HttpStatus.CREATED).body(String.valueOf(token));
