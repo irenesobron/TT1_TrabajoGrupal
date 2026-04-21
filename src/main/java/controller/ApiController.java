@@ -12,6 +12,7 @@ import com.ejemplo.SolicitudResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.security.SecureRandom;
 
@@ -23,6 +24,41 @@ public class ApiController {
     private final Map<String, List<Integer>> tokensPorUsuario = new ConcurrentHashMap<>();
     private final Map<Integer, String> resultadosPorToken = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
+
+    private String generateGridData(int token, int size) {
+        try {
+            StringBuilder data = new StringBuilder();
+            
+            // Primera línea: ancho del tablero (como espera ContactoSimService)
+            data.append(size).append("\n");
+            
+            // Usar el token como seed para generar datos determinísticos
+            Random tokenRandom = new Random(token);
+            String[] colors = {"red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan"};
+            
+            // Generar datos en el formato esperado por ContactoSimService: tiempo,y,x,color
+            int maxTime = 10; // 10 segundos de simulación
+            
+            // Generar puntos para cada tiempo (formato: tiempo,y,x,color)
+            int numPoints = Math.min(size, 24); // Máximo 24 puntos para grid de 12x12
+            for (int t = 0; t < maxTime; t++) {
+                // Algunos puntos cambian con el tiempo
+                for (int i = 0; i < numPoints; i++) {
+                    int x = (tokenRandom.nextInt(size) + t * 2) % size; // Movimiento con el tiempo
+                    int y = (tokenRandom.nextInt(size) + i) % size;
+                    String color = colors[tokenRandom.nextInt(colors.length)];
+                    // Formato esperado: tiempo,y,x,color
+                    data.append(t).append(",").append(y).append(",").append(x).append(",").append(color).append("\n");
+                }
+            }
+            
+            return data.toString();
+        } catch (Exception e) {
+            System.err.println("Error generando grid: " + e.getMessage());
+            e.printStackTrace();
+            return "Error generando datos";
+        }
+    }
 
     @GetMapping("/")
     public String home() {
@@ -47,30 +83,58 @@ public class ApiController {
 
 
     @PostMapping("/Resultados")
-    public ResponseEntity<?> obtenerResultados(@RequestParam String nombreUsuario, @RequestParam Integer tok) {
-        String data = resultadosPorToken.get(tok);
-        if (data == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ProblemDetails("error", "Bad Request", 400, "Token no encontrado", "/Resultados"));
-        }
+    public ResponseEntity<ResultsResponse> obtenerResultados(@RequestParam String nombreUsuario, @RequestParam Integer tok) {
+        try {
+            System.out.println("=== DEBUG /Resultados ===");
+            System.out.println("Token solicitado: " + tok);
+            
+            String data = resultadosPorToken.get(tok);
+            if (data == null) {
+                System.err.println("Token NO encontrado: " + tok);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ResultsResponse(false, tok, "Token no encontrado", null));
+            }
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ResultsResponse(true, tok, null, data));
+            System.out.println("Token encontrado. Devolviendo ResultsResponse con grid 12x12");
+            System.out.println("Datos del grid: " + data.substring(0, Math.min(200, data.length())));
+            
+            return ResponseEntity.ok(new ResultsResponse(true, tok, null, data));
+        } catch (Exception e) {
+            System.err.println("Error en /Resultados: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResultsResponse(false, tok, "Error interno: " + e.getMessage(), null));
+        }
     }
 
 
 
     @PostMapping("/Solicitud/Solicitar")
     public ResponseEntity<?> solicitar(@RequestParam String nombreUsuario, @RequestBody Solicitud solicitud) {
-        int token = random.nextInt(Integer.MAX_VALUE);
-        tokensPorUsuario.computeIfAbsent(nombreUsuario, k -> new ArrayList<>()).add(token);
+        try {
+            System.out.println("=== DEBUG /Solicitud/Solicitar ===");
+            System.out.println("Usuario: " + nombreUsuario);
+            
+            int token = Math.abs(random.nextInt());
+            System.out.println("Token generado: " + token);
+            
+            tokensPorUsuario.computeIfAbsent(nombreUsuario, k -> new ArrayList<>()).add(token);
 
-        String data = "5\n0,0,0,red\n0,1,1,blue\n1,2,2,green\n2,3,3,yellow\n";
-        resultadosPorToken.put(token, data);
+            System.out.println("Generando grid de 12x12...");
+            String data = generateGridData(token, 12);
+            System.out.println("Grid generado. Almacenando en caché...");
+            
+            resultadosPorToken.put(token, data);
+            System.out.println("Datos almacenados. Devolviendo SolicitudResponse");
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new SolicitudResponse(true, token, null, true));
-
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new SolicitudResponse(true, token, null, true));
+        } catch (Exception e) {
+            System.err.println("Error en /Solicitud/Solicitar: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ProblemDetails("error", "Internal Server Error", 500, e.getMessage(), "/Solicitud/Solicitar"));
+        }
     }
 
 
@@ -100,10 +164,16 @@ public class ApiController {
     //Paa el cliente
     @PostMapping("/solicitud")
     public ResponseEntity<String> solicitudCompat(@RequestBody(required = false) String body) {
-        int token = random.nextInt(Integer.MAX_VALUE);
-        String data = "5\n0,0,0,red\n0,1,1,blue\n1,2,2,green\n2,3,3,yellow\n";
-        resultadosPorToken.put(token, data);
-        return ResponseEntity.status(HttpStatus.CREATED).body(String.valueOf(token));
+        try {
+            int token = Math.abs(random.nextInt());
+            String data = generateGridData(token, 12);
+            resultadosPorToken.put(token, data);
+            return ResponseEntity.status(HttpStatus.CREATED).body(String.valueOf(token));
+        } catch (Exception e) {
+            System.err.println("Error en solicitudCompat: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error generando solicitud");
+        }
     }
 
     @GetMapping("/resultado")
