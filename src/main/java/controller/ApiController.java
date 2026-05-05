@@ -20,7 +20,6 @@ import java.security.SecureRandom;
 @RequestMapping("")
 public class ApiController {
 
-
     private final Map<String, List<Integer>> tokensPorUsuario = new ConcurrentHashMap<>();
     private final Map<Integer, String> resultadosPorToken = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
@@ -28,31 +27,83 @@ public class ApiController {
     private String generateGridData(int token, int size) {
         try {
             StringBuilder data = new StringBuilder();
-            
-            // Primera línea: ancho del tablero (como espera ContactoSimService)
             data.append(size).append("\n");
-            
-            // Usar el token como seed para generar datos determinísticos
+
+            String[] colors = {"blue", "green", "yellow", "purple"};
             Random tokenRandom = new Random(token);
-            String[] colors = {"red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan"};
-            
-            // Generar datos en el formato esperado por ContactoSimService: tiempo,y,x,color
-            int maxTime = 10; // 10 segundos de simulación
-            
-            // Generar puntos para cada tiempo (formato: tiempo,y,x,color)
-            int numPoints = Math.min(size, 24); // Máximo 24 puntos para grid de 12x12
-            for (int t = 0; t < maxTime; t++) {
-                // Algunos puntos cambian con el tiempo
-                for (int i = 0; i < numPoints; i++) {
-                    int x = (tokenRandom.nextInt(size) + t * 2) % size; // Movimiento con el tiempo
-                    int y = (tokenRandom.nextInt(size) + i) % size;
-                    String color = colors[tokenRandom.nextInt(colors.length)];
-                    // Formato esperado: tiempo,y,x,color
-                    data.append(t).append(",").append(y).append(",").append(x).append(",").append(color).append("\n");
+            int numEntities = Math.min(size * 2, 20);
+
+            int[] ex        = new int[numEntities];
+            int[] ey        = new int[numEntities];
+            int[] dx        = new int[numEntities];
+            int[] dy        = new int[numEntities];
+            String[] ecolor = new String[numEntities];
+
+            // Direcciones ortogonales para los rojos: arriba, abajo, izq, der
+            int[][] dirs = {{0,1},{0,-1},{-1,0},{1,0}};
+
+            for (int i = 0; i < numEntities; i++) {
+                ex[i]     = tokenRandom.nextInt(size);
+                ey[i]     = tokenRandom.nextInt(size);
+
+                // Los primeros 4 son rojos, el resto colores estáticos
+                if (i < 4) {
+                    ecolor[i] = "red";
+                    int[] dir = dirs[tokenRandom.nextInt(4)];
+                    dx[i] = dir[0];
+                    dy[i] = dir[1];
+                } else {
+                    ecolor[i] = colors[i % colors.length];
+                    dx[i] = 0; // estáticos
+                    dy[i] = 0;
                 }
             }
-            
+
+            int maxTime = 10;
+
+            for (int t = 0; t < maxTime; t++) {
+
+                // Solo mover las entidades rojas
+                if (t > 0) {
+                    for (int i = 0; i < numEntities; i++) {
+                        if ("red".equals(ecolor[i])) {
+                            ex[i] = (ex[i] + dx[i] + size) % size;
+                            ey[i] = (ey[i] + dy[i] + size) % size;
+                        }
+                    }
+                }
+
+                // Colisiones: un rojo convierte a cualquier entidad adyacente o en su misma celda
+                for (int i = 0; i < numEntities; i++) {
+                    if (!"red".equals(ecolor[i])) continue;
+                    for (int j = 0; j < numEntities; j++) {
+                        if (i == j || "red".equals(ecolor[j])) continue;
+
+                        int distX = Math.abs(ex[i] - ex[j]);
+                        int distY = Math.abs(ey[i] - ey[j]);
+
+                        // Convierte si está en la misma celda o es adyacente (distancia 1)
+                        if (distX <= 1 && distY <= 1 && distX + distY <= 1) {
+                            ecolor[j] = "red";
+                            // El nuevo rojo hereda una dirección aleatoria
+                            int[] dir = dirs[tokenRandom.nextInt(4)];
+                            dx[j] = dir[0];
+                            dy[j] = dir[1];
+                        }
+                    }
+                }
+
+                // Emitir estado actual
+                for (int i = 0; i < numEntities; i++) {
+                    data.append(t).append(",")
+                            .append(ey[i]).append(",")
+                            .append(ex[i]).append(",")
+                            .append(ecolor[i]).append("\n");
+                }
+            }
+
             return data.toString();
+
         } catch (Exception e) {
             System.err.println("Error generando grid: " + e.getMessage());
             e.printStackTrace();
@@ -69,11 +120,8 @@ public class ApiController {
     public ResponseEntity<?> enviarEmail(@RequestParam String emailAddress, @RequestParam String message) {
 
         if (emailAddress == null || message == null) {
-
             ProblemDetails problemDetails = new ProblemDetails("error", "Bad Request", 400, "Missing emailAddress or message", "/Email");
-
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetails);
-
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(new EmailResponse(true, null));
