@@ -13,14 +13,41 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.security.SecureRandom;
 
+/**
+ * Controlador REST principal de la API para gestionar solicitudes, resultados y simulaciones biológicas.
+ * Proporciona endpoints para enviar emails, solicitar simulaciones, obtener resultados y compatibilidad.
+ * Incluye una simulación de modelo biológico con depredadores, presas e infectados en un grid.
+ *
+ * @author Equipo TT1 Trabajo Grupal
+ * @version 1.0
+ */
 @RestController
 @RequestMapping("")
 public class ApiController {
 
+    /**
+     * Mapa concurrente que asocia nombres de usuario con listas de tokens generados para sus solicitudes.
+     */
     private final Map<String, List<Integer>> tokensPorUsuario = new ConcurrentHashMap<>();
+
+    /**
+     * Mapa concurrente que asocia tokens con los datos de resultados de simulación generados.
+     */
     private final Map<Integer, String> resultadosPorToken = new ConcurrentHashMap<>();
+
+    /**
+     * Generador de números aleatorios seguro para crear tokens únicos.
+     */
     private final SecureRandom random = new SecureRandom();
 
+    /**
+     * Genera datos de simulación para un grid biológico con depredadores (rojos), presas (amarillas) e infectados (naranjas).
+     * La simulación incluye movimiento de depredadores, conversión de presas a infectados y bloqueo por infectados.
+     *
+     * @param token Semilla para generar datos determinísticos y reproducibles.
+     * @param size Tamaño del grid (ancho y alto).
+     * @return Cadena con los datos de simulación en formato CSV: tiempo,y,x,color\n
+     */
     private String generateGridData(int token, int size) {
         try {
             StringBuilder data = new StringBuilder();
@@ -129,11 +156,23 @@ public class ApiController {
         }
     }
 
+    /**
+     * Endpoint raíz que verifica si la API está funcionando.
+     *
+     * @return Mensaje de confirmación de que la API está operativa.
+     */
     @GetMapping("/")
     public String home() {
         return "API funcionando.";
     }
 
+    /**
+     * Endpoint para enviar un email con dirección y mensaje proporcionados.
+     *
+     * @param emailAddress Dirección de email del destinatario.
+     * @param message Contenido del mensaje a enviar.
+     * @return Respuesta con éxito o error si faltan parámetros.
+     */
     @PostMapping("/Email")
     public ResponseEntity<?> enviarEmail(@RequestParam String emailAddress, @RequestParam String message) {
 
@@ -148,25 +187,26 @@ public class ApiController {
 
 
 
+    /**
+     * Endpoint para obtener los resultados de una simulación basada en un token.
+     *
+     * @param nombreUsuario Nombre del usuario que solicita los resultados.
+     * @param tok Token único asociado a la simulación.
+     * @return Respuesta con los datos de simulación o error si el token no existe.
+     */
     @PostMapping("/Resultados")
     public ResponseEntity<ResultsResponse> obtenerResultados(@RequestParam String nombreUsuario, @RequestParam Integer tok) {
         try {
-            System.out.println("=== DEBUG /Resultados ===");
             System.out.println("Token solicitado: " + tok);
             
             String data = resultadosPorToken.get(tok);
             if (data == null) {
-                System.err.println("Token NO encontrado: " + tok);
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(new ResultsResponse(false, tok, "Token no encontrado", null));
             }
-
-            System.out.println("Token encontrado. Devolviendo ResultsResponse con grid 12x12");
-            System.out.println("Datos del grid: " + data.substring(0, Math.min(200, data.length())));
             
             return ResponseEntity.ok(new ResultsResponse(true, tok, null, data));
         } catch (Exception e) {
-            System.err.println("Error en /Resultados: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResultsResponse(false, tok, "Error interno: " + e.getMessage(), null));
@@ -175,6 +215,14 @@ public class ApiController {
 
 
 
+    /**
+     * Endpoint para solicitar una nueva simulación biológica.
+     * Genera un token único y datos de simulación basados en la solicitud.
+     *
+     * @param nombreUsuario Nombre del usuario que realiza la solicitud.
+     * @param solicitud Objeto con detalles de la solicitud.
+     * @return Respuesta con el token generado o error interno.
+     */
     @PostMapping("/Solicitud/Solicitar")
     public ResponseEntity<?> solicitar(@RequestParam String nombreUsuario, @RequestBody Solicitud solicitud) {
         try {
@@ -190,7 +238,6 @@ public class ApiController {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new SolicitudResponse(true, token, null, true));
         } catch (Exception e) {
-            System.err.println("Error en /Solicitud/Solicitar: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ProblemDetails("error", "Internal Server Error", 500, e.getMessage(), "/Solicitud/Solicitar"));
@@ -199,12 +246,25 @@ public class ApiController {
 
 
 
+    /**
+     * Endpoint para obtener la lista de tokens de solicitudes de un usuario.
+     *
+     * @param nombreUsuario Nombre del usuario.
+     * @return Lista de tokens asociados al usuario.
+     */
     @GetMapping("/Solicitud/GetSolicitudesUsuario")
     public ResponseEntity<?> getSolicitudesUsuario(@RequestParam String nombreUsuario) {
         return ResponseEntity.status(HttpStatus.CREATED)
         .body(tokensPorUsuario.getOrDefault(nombreUsuario, List.of()));
     }
 
+    /**
+     * Endpoint para comprobar si una solicitud (token) existe para un usuario.
+     *
+     * @param nombreUsuario Nombre del usuario.
+     * @param tok Token a comprobar.
+     * @return Lista con el token si existe, o lista vacía si no.
+     */
     @GetMapping("/Solicitud/ComprobarSolicitud")
     public ResponseEntity<?> comprobarSolicitud(@RequestParam String nombreUsuario, @RequestParam Integer tok) {
         if (nombreUsuario == null || tok == null) {
@@ -221,7 +281,12 @@ public class ApiController {
             return ResponseEntity.status(HttpStatus.CREATED).body(List.of());
     }
 
-    //Paa el cliente
+    /**
+     * Endpoint de compatibilidad para solicitar una simulación (versión simplificada).
+     *
+     * @param body Cuerpo opcional de la solicitud.
+     * @return Token generado como cadena o mensaje de error.
+     */
     @PostMapping("/solicitud")
     public ResponseEntity<String> solicitudCompat(@RequestBody(required = false) String body) {
         try {
@@ -230,12 +295,17 @@ public class ApiController {
             resultadosPorToken.put(token, data);
             return ResponseEntity.status(HttpStatus.CREATED).body(String.valueOf(token));
         } catch (Exception e) {
-            System.err.println("Error en solicitudCompat: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error generando solicitud");
         }
     }
 
+    /**
+     * Endpoint de compatibilidad para obtener resultados de simulación por token.
+     *
+     * @param token Token como cadena para obtener los resultados.
+     * @return Datos de simulación o mensaje de error si el token es inválido.
+     */
     @GetMapping("/resultado")
     public ResponseEntity<String> resultadoCompat(@RequestParam String token) {
         try {
