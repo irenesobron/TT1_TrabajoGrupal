@@ -31,7 +31,7 @@ jobs:
 
       # Paso 4: Subir Javadoc como artefacto
       - name: Upload Javadoc
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: javadoc
-          path: target/site/apidocs  
+          path: target/site/apidocs
