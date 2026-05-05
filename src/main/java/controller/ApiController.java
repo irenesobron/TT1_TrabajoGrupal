@@ -9,10 +9,7 @@ import com.ejemplo.ResultsResponse;
 import com.ejemplo.Solicitud;
 import com.ejemplo.SolicitudResponse;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.security.SecureRandom;
 
@@ -27,83 +24,104 @@ public class ApiController {
     private String generateGridData(int token, int size) {
         try {
             StringBuilder data = new StringBuilder();
+
             data.append(size).append("\n");
 
-            String[] colors = {"blue", "green", "yellow", "purple"};
             Random tokenRandom = new Random(token);
-            int numEntities = Math.min(size * 2, 20);
 
-            int[] ex        = new int[numEntities];
-            int[] ey        = new int[numEntities];
-            int[] dx        = new int[numEntities];
-            int[] dy        = new int[numEntities];
-            String[] ecolor = new String[numEntities];
+            String predatorColor = "red";
+            String infectedColor = "orange";
+            String preyColor = "yellow";
 
-            // Direcciones ortogonales para los rojos: arriba, abajo, izq, der
-            int[][] dirs = {{0,1},{0,-1},{-1,0},{1,0}};
+            // Inicializar entidades: tipo 0=rojo, 1=amarillo, 2=naranja
+            List<int[]> entities = new ArrayList<>();
 
-            for (int i = 0; i < numEntities; i++) {
-                ex[i]     = tokenRandom.nextInt(size);
-                ey[i]     = tokenRandom.nextInt(size);
+            // 8 depredadores rojos
+            for (int i = 0; i < 8; i++) {
+                int x = tokenRandom.nextInt(size);
+                int y = tokenRandom.nextInt(size);
+                entities.add(new int[]{x, y, 0});
+            }
 
-                // Los primeros 4 son rojos, el resto colores estáticos
-                if (i < 4) {
-                    ecolor[i] = "red";
-                    int[] dir = dirs[tokenRandom.nextInt(4)];
-                    dx[i] = dir[0];
-                    dy[i] = dir[1];
-                } else {
-                    ecolor[i] = colors[i % colors.length];
-                    dx[i] = 0; // estáticos
-                    dy[i] = 0;
-                }
+            // 12 presas amarillas
+            for (int i = 0; i < 12; i++) {
+                int x = tokenRandom.nextInt(size);
+                int y = tokenRandom.nextInt(size);
+                entities.add(new int[]{x, y, 1});
             }
 
             int maxTime = 10;
 
             for (int t = 0; t < maxTime; t++) {
 
-                // Solo mover las entidades rojas
-                if (t > 0) {
-                    for (int i = 0; i < numEntities; i++) {
-                        if ("red".equals(ecolor[i])) {
-                            ex[i] = (ex[i] + dx[i] + size) % size;
-                            ey[i] = (ey[i] + dy[i] + size) % size;
+                // Construir set de posiciones ocupadas por naranjas para bloqueo
+                Set<String> orangePositions = new HashSet<>();
+                for (int[] entity : entities) {
+                    if (entity[2] == 2) {
+                        orangePositions.add(entity[0] + "," + entity[1]);
+                    }
+                }
+
+                // FASE 1: Mover solo los rojos, sin poder pasar por celdas naranja
+                for (int[] entity : entities) {
+                    if (entity[2] == 0) {
+                        int dir = tokenRandom.nextInt(4);
+                        int newX = entity[0];
+                        int newY = entity[1];
+
+                        switch (dir) {
+                            case 0: newY = (entity[1] - 1 + size) % size; break; // arriba
+                            case 1: newY = (entity[1] + 1) % size;        break; // abajo
+                            case 2: newX = (entity[0] - 1 + size) % size; break; // izquierda
+                            case 3: newX = (entity[0] + 1) % size;        break; // derecha
+                        }
+
+                        // Solo moverse si la celda destino no está ocupada por una naranja
+                        if (!orangePositions.contains(newX + "," + newY)) {
+                            entity[0] = newX;
+                            entity[1] = newY;
+                        }
+                        // Si está bloqueado, se queda en su posición actual
+                    }
+                    // Amarillas y naranjas no se mueven
+                }
+
+                // FASE 2: Detectar amarillas adyacentes a rojos → se vuelven naranjas
+                List<Integer> toConvert = new ArrayList<>();
+                for (int i = 0; i < entities.size(); i++) {
+                    int[] cell = entities.get(i);
+                    if (cell[2] == 1) { // Es amarilla
+                        for (int[] predator : entities) {
+                            if (predator[2] == 0) { // Es roja
+                                int dx = Math.abs(cell[0] - predator[0]);
+                                int dy = Math.abs(cell[1] - predator[1]);
+                                if ((dx == 1 && dy == 0) || (dx == 0 && dy == 1)) {
+                                    toConvert.add(i);
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
 
-                // Colisiones: un rojo convierte a cualquier entidad adyacente o en su misma celda
-                for (int i = 0; i < numEntities; i++) {
-                    if (!"red".equals(ecolor[i])) continue;
-                    for (int j = 0; j < numEntities; j++) {
-                        if (i == j || "red".equals(ecolor[j])) continue;
-
-                        int distX = Math.abs(ex[i] - ex[j]);
-                        int distY = Math.abs(ey[i] - ey[j]);
-
-                        // Convierte si está en la misma celda o es adyacente (distancia 1)
-                        if (distX <= 1 && distY <= 1 && distX + distY <= 1) {
-                            ecolor[j] = "red";
-                            // El nuevo rojo hereda una dirección aleatoria
-                            int[] dir = dirs[tokenRandom.nextInt(4)];
-                            dx[j] = dir[0];
-                            dy[j] = dir[1];
-                        }
-                    }
+                // Aplicar conversiones amarillo → naranja
+                for (int idx : toConvert) {
+                    entities.get(idx)[2] = 2;
                 }
 
-                // Emitir estado actual
-                for (int i = 0; i < numEntities; i++) {
-                    data.append(t).append(",")
-                            .append(ey[i]).append(",")
-                            .append(ex[i]).append(",")
-                            .append(ecolor[i]).append("\n");
+                // FASE 3: Generar output para este tiempo
+                for (int[] entity : entities) {
+                    String color;
+                    switch (entity[2]) {
+                        case 0:  color = predatorColor; break;
+                        case 2:  color = infectedColor; break;
+                        default: color = preyColor;     break;
+                    }
+                    data.append(t).append(",").append(entity[1]).append(",").append(entity[0]).append(",").append(color).append("\n");
                 }
             }
 
             return data.toString();
-
         } catch (Exception e) {
             System.err.println("Error generando grid: " + e.getMessage());
             e.printStackTrace();
