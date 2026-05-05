@@ -51,10 +51,16 @@ public class ApiController {
     private String generateGridData(int token, int size) {
         try {
             StringBuilder data = new StringBuilder();
+<<<<<<< Updated upstream
 
+=======
+            
+            // Primera línea: ancho del tablero
+>>>>>>> Stashed changes
             data.append(size).append("\n");
 
             Random tokenRandom = new Random(token);
+<<<<<<< Updated upstream
 
             String predatorColor = "red";
             String infectedColor = "orange";
@@ -125,10 +131,57 @@ public class ApiController {
                                 if ((dx == 1 && dy == 0) || (dx == 0 && dy == 1)) {
                                     toConvert.add(i);
                                     break;
+=======
+            
+            // Definir colores: red para depredadores, yellow para presas
+            String predatorColor = "red";
+            String preyColor = "yellow";
+            
+            // Inicializar entidades: lista de [x, y, tipo] donde tipo 0=predator, 1=prey
+            List<int[]> entities = new ArrayList<>();
+            int numEntities = Math.min(size * 2, 24); // Máximo 24 entidades
+            for (int i = 0; i < numEntities; i++) {
+                int x = tokenRandom.nextInt(size);
+                int y = tokenRandom.nextInt(size);
+                int type = tokenRandom.nextInt(2); // 0=predator, 1=prey
+                entities.add(new int[]{x, y, type});
+            }
+            
+            int maxTime = 10; // 10 segundos de simulación
+            
+            // Simular por cada tiempo
+            for (int t = 0; t < maxTime; t++) {
+                // Mover solo depredadores aleatoriamente
+                for (int[] entity : entities) {
+                    if (entity[2] == 0) { // Solo depredadores se mueven
+                        entity[0] = (entity[0] + tokenRandom.nextInt(3) - 1 + size) % size;
+                        entity[1] = (entity[1] + tokenRandom.nextInt(3) - 1 + size) % size;
+                    }
+                    // Presas se quedan quietas
+                }
+                
+                // Aplicar reglas de interacción: depredadores comen presas cercanas y las eliminan
+                List<int[]> newEntities = new ArrayList<>();
+                for (int i = 0; i < entities.size(); i++) {
+                    int[] entity = entities.get(i);
+                    boolean eaten = false;
+                    if (entity[2] == 0) { // Es depredador
+                        // Buscar presas cercanas (distancia 1)
+                        for (int j = entities.size() - 1; j >= 0; j--) {
+                            if (entities.get(j)[2] == 1) { // Es presa
+                                int dx = Math.abs(entity[0] - entities.get(j)[0]);
+                                int dy = Math.abs(entity[1] - entities.get(j)[1]);
+                                if (dx <= 1 && dy <= 1 && (dx + dy) > 0) { // Cercana, no misma posición
+                                    // Comer: eliminar la presa
+                                    entities.remove(j);
+                                    eaten = true;
+                                    // No break, para que pueda comer múltiples si están cerca
+>>>>>>> Stashed changes
                                 }
                             }
                         }
                     }
+<<<<<<< Updated upstream
                 }
 
                 // Aplicar conversiones amarillo → naranja
@@ -144,6 +197,17 @@ public class ApiController {
                         case 2:  color = infectedColor; break;
                         default: color = preyColor;     break;
                     }
+=======
+                    if (!eaten || entity[2] == 1) { // Mantener si no fue comida o es presa
+                        newEntities.add(entity);
+                    }
+                }
+                entities = newEntities;
+                
+                // Generar output para este tiempo
+                for (int[] entity : entities) {
+                    String color = (entity[2] == 0) ? predatorColor : preyColor;
+>>>>>>> Stashed changes
                     data.append(t).append(",").append(entity[1]).append(",").append(entity[0]).append(",").append(color).append("\n");
                 }
             }
