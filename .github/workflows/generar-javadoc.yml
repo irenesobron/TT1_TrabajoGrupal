@@ -1,0 +1,37 @@
+name: Generar Javadoc y publicar en GitHub Pages
+
+on:
+  push:
+    branches:
+      - generar-javadoc
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-javadoc:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Paso 1: Clonar el repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Paso 2: Configurar Java 11
+      - name: Setup Java 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      # Paso 3: Compilar el proyecto y generar Javadoc
+      - name: Build project and generate Javadoc
+        run: mvn clean install javadoc:javadoc
+
+      # Paso 4: Subir Javadoc como artefacto
+      - name: Upload Javadoc
+        uses: actions/upload-artifact@v4
+        with:
+          name: javadoc
+          path: target/site/apidocs
