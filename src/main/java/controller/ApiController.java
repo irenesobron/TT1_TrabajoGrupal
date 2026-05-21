@@ -13,14 +13,35 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.security.SecureRandom;
 
+/**
+ *
+ * Clase que gestiona las solicitudes. Se encarga de crear los tokens, generar los datos
+ * para la cuadrícula y consulta los resultados
+ *
+ */
 @RestController
 @RequestMapping("")
 public class ApiController {
-
+    /**
+     * Mapa que asocia el nombre de usuario con la lista de tokens que le han sido asignados.
+     */
     private final Map<String, List<Integer>> tokensPorUsuario = new ConcurrentHashMap<>();
+    /**
+     * Mapa que almacena los datos de simulación de grid ya calculados.
+     * */
     private final Map<Integer, String> resultadosPorToken = new ConcurrentHashMap<>();
+    /**
+     * Generación de números aleatorios.
+     */
     private final SecureRandom random = new SecureRandom();
 
+    /**
+     * Genera una cadena con los datos para la cuadrícula.
+     *
+     * @param token indica el token al que hace referencia
+     * @param size indica el tamaño de la cuadricula
+     * @return Cadena con los datos necesarios
+     */
     private String generateGridData(int token, int size) {
         try {
             StringBuilder data = new StringBuilder();
@@ -29,13 +50,12 @@ public class ApiController {
             Random tokenRandom = new Random(token);
 
             int[][] baseRGB = {
-                    {255, 0,   0  }, // rojo
-                    {255, 255, 0  }, // amarillo
-                    {0,   255, 0  }, // verde
-                    {173,   216,   230}  // azul
+                    {255, 0,   0  },
+                    {255, 255, 0  },
+                    {0,   255, 0  },
+                    {173,   216,   230}
             };
 
-            // Entidades: [x, y, r, g, b]
             Set<String> ocupadas = new HashSet<>();
             List<int[]> entities = new ArrayList<>();
 
@@ -53,7 +73,6 @@ public class ApiController {
 
             int maxTime = 11;
 
-            // Output inicial (t=0) sin mezclas
             for (int[] entity : entities) {
                 String color = String.format("#%02x%02x%02x", entity[2], entity[3], entity[4]);
                 data.append(0).append(",")
@@ -64,7 +83,7 @@ public class ApiController {
 
             for (int t = 1; t < maxTime; t++) {
 
-                // FASE 1: Mover todas las entidades aleatoriamente (con bordes y sin colisiones)
+
                 ocupadas = new HashSet<>();
                 for (int[] entity : entities) {
                     ocupadas.add(entity[0] + "," + entity[1]);
@@ -76,13 +95,13 @@ public class ApiController {
                     int newY = entity[1];
 
                     switch (dir) {
-                        case 0: newY = entity[1] - 1; break; // arriba
-                        case 1: newY = entity[1] + 1; break; // abajo
-                        case 2: newX = entity[0] - 1; break; // izquierda
-                        case 3: newX = entity[0] + 1; break; // derecha
+                        case 0: newY = entity[1] - 1; break;
+                        case 1: newY = entity[1] + 1; break;
+                        case 2: newX = entity[0] - 1; break;
+                        case 3: newX = entity[0] + 1; break;
                     }
 
-                    // Solo moverse si no sale del borde y la casilla está libre
+
                     if (newX >= 0 && newX < size && newY >= 0 && newY < size
                             && !ocupadas.contains(newX + "," + newY)) {
                         ocupadas.remove(entity[0] + "," + entity[1]);
@@ -92,7 +111,7 @@ public class ApiController {
                     }
                 }
 
-                // FASE 2: Mezclar colores con vecinos y actualizar permanentemente
+
                 int n = entities.size();
                 int[][] newColors = new int[n][3];
 
@@ -120,14 +139,12 @@ public class ApiController {
                     newColors[i][2] = b / count;
                 }
 
-                // Aplicar los nuevos colores permanentemente
                 for (int i = 0; i < n; i++) {
                     entities.get(i)[2] = newColors[i][0];
                     entities.get(i)[3] = newColors[i][1];
                     entities.get(i)[4] = newColors[i][2];
                 }
 
-                // FASE 3: Generar output para este tiempo
                 for (int[] entity : entities) {
                     String color = String.format("#%02x%02x%02x", entity[2], entity[3], entity[4]);
                     data.append(t).append(",")
@@ -145,11 +162,23 @@ public class ApiController {
         }
     }
 
+    /**
+     * Comprueba que la API está activa.
+     *
+     * @return Cadena confirmando que la API funciona
+     */
     @GetMapping("/")
     public String home() {
         return "API funcionando.";
     }
 
+    /**
+     * Simula el envío de un correo electrónico.
+     *
+     * @param emailAddress dirección de correo electrónico destinatario
+     * @param message cuerpo del mensaje a enviar
+     * @return HTTP 201 si los parámetros son válidos, HTTP 400 si falta alguno
+     */
     @PostMapping("/Email")
     public ResponseEntity<?> enviarEmail(@RequestParam String emailAddress, @RequestParam String message) {
 
@@ -163,7 +192,13 @@ public class ApiController {
     }
 
 
-
+    /**
+     * Devuelve los datos de simulación asociados a un token.
+     *
+     * @param nombreUsuario nombre del usuario que realiza la consulta
+     * @param tok token previamente generado por {@link #solicitar}
+     * @return HTTP 200 con los datos del grid si el token existe, HTTP 400 si no se encuentra
+     */
     @PostMapping("/Resultados")
     public ResponseEntity<ResultsResponse> obtenerResultados(@RequestParam String nombreUsuario, @RequestParam Integer tok) {
         try {
@@ -190,7 +225,13 @@ public class ApiController {
     }
 
 
-
+    /**
+     * Crea una nueva solicitud de simulación para el usuario indicado.
+     *
+     * @param nombreUsuario nombre del usuario que realiza la solicitud
+     * @param solicitud cuerpo de la petición deserializado desde JSON
+     * @return HTTP 201 con el token generado, HTTP 500 si ocurre un error
+     */
     @PostMapping("/Solicitud/Solicitar")
     public ResponseEntity<?> solicitar(@RequestParam String nombreUsuario, @RequestBody Solicitud solicitud) {
         try {
@@ -215,12 +256,25 @@ public class ApiController {
 
 
 
+    /**
+     * Devuelve la lista de tokens asignados a un usuario.
+     *
+     * @param nombreUsuario nombre del usuario a consultar
+     * @return HTTP 201 con la lista de tokens, o lista vacía si no tiene ninguno
+     */
     @GetMapping("/Solicitud/GetSolicitudesUsuario")
     public ResponseEntity<?> getSolicitudesUsuario(@RequestParam String nombreUsuario) {
         return ResponseEntity.status(HttpStatus.CREATED)
         .body(tokensPorUsuario.getOrDefault(nombreUsuario, List.of()));
     }
 
+    /**
+     * Comprueba si un token concreto existe y tiene resultados disponibles.
+     *
+     * @param nombreUsuario nombre del usuario que realiza la comprobación
+     * @param tok token a comprobar
+     * @return HTTP 201 con el token si existe, lista vacía si no, HTTP 400 si falta algún parámetro
+     */
     @GetMapping("/Solicitud/ComprobarSolicitud")
     public ResponseEntity<?> comprobarSolicitud(@RequestParam String nombreUsuario, @RequestParam Integer tok) {
         if (nombreUsuario == null || tok == null) {
@@ -237,7 +291,12 @@ public class ApiController {
             return ResponseEntity.status(HttpStatus.CREATED).body(List.of());
     }
 
-    //Paa el cliente
+    /**
+     * Devuelve el token generado.
+     *
+     * @param body cuerpo de la petición
+     * @return HTTP 201 con el token como texto, HTTP 500 si ocurre un error
+     */
     @PostMapping("/solicitud")
     public ResponseEntity<String> solicitudCompat(@RequestBody(required = false) String body) {
         try {
@@ -252,6 +311,12 @@ public class ApiController {
         }
     }
 
+    /**
+     * Recibe el token como texto y devuelve los datos del grid.
+     *
+     * @param token identificador de la simulación como cadena de texto
+     * @return HTTP 200 con los datos del grid, HTTP 400 si el token no existe o no es válido
+     */
     @GetMapping("/resultado")
     public ResponseEntity<String> resultadoCompat(@RequestParam String token) {
         try {
